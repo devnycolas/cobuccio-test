@@ -3,7 +3,11 @@ import { TransactionsController } from './transactions.controller';
 import { TransactionsService } from './transactions.service';
 import { ReverseTransactionDto } from './dto/reverse-transaction.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 
 describe('TransactionsController', () => {
   let controller: TransactionsController;
@@ -155,7 +159,10 @@ describe('TransactionsController', () => {
         expectedResult,
       );
 
-      const result = await controller.reverse(mockRequest, reverseTransactionDto);
+      const result = await controller.reverse(
+        mockRequest,
+        reverseTransactionDto,
+      );
 
       expect(service.reverseTransaction).toHaveBeenCalledWith(
         mockRequest.user.id,

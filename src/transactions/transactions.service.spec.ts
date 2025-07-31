@@ -262,4 +262,190 @@ describe('TransactionsService', () => {
       });
     });
   });
+
+  describe('findOne', () => {
+    it('should return a transaction by id', async () => {
+      const transactionId = 'transaction-123';
+      const mockTransaction = {
+        id: transactionId,
+        type: TransactionType.DEPOSIT,
+        amount: 100,
+        status: TransactionStatus.COMPLETED,
+        sourceWallet: null,
+        destinationWallet: { id: 'wallet-123' },
+      };
+
+      jest
+        .spyOn(transactionRepository, 'findOne')
+        .mockResolvedValue(mockTransaction as any);
+
+      const result = await service.findOne(transactionId);
+
+      expect(result).toEqual(mockTransaction);
+      expect(transactionRepository.findOne).toHaveBeenCalledWith({
+        where: { id: transactionId },
+        relations: ['sourceWallet', 'destinationWallet'],
+      });
+    });
+
+    it('should throw NotFoundException when transaction not found', async () => {
+      const transactionId = 'non-existent-transaction';
+
+      jest.spyOn(transactionRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(service.findOne(transactionId)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(transactionRepository.findOne).toHaveBeenCalledWith({
+        where: { id: transactionId },
+        relations: ['sourceWallet', 'destinationWallet'],
+      });
+    });
+  });
+
+  describe('findTransactionsByUserId', () => {
+    it('should return transactions for a user', async () => {
+      const userId = 'user-123';
+      const mockWallet = { id: 'wallet-123', userId };
+      const mockTransactions = [
+        {
+          id: 'transaction-1',
+          type: TransactionType.DEPOSIT,
+          amount: 100,
+          sourceWalletId: null,
+          destinationWalletId: 'wallet-123',
+        },
+        {
+          id: 'transaction-2',
+          type: TransactionType.TRANSFER,
+          amount: 50,
+          sourceWalletId: 'wallet-123',
+          destinationWalletId: 'wallet-456',
+        },
+      ];
+
+      jest
+        .spyOn(walletRepository, 'findOne')
+        .mockResolvedValue(mockWallet as any);
+      jest
+        .spyOn(transactionRepository, 'find')
+        .mockResolvedValue(mockTransactions as any);
+
+      const result = await service.findTransactionsByUserId(userId);
+
+      expect(result).toEqual(mockTransactions);
+      expect(walletRepository.findOne).toHaveBeenCalledWith({
+        where: { userId },
+      });
+      expect(transactionRepository.find).toHaveBeenCalledWith({
+        where: [
+          { sourceWalletId: 'wallet-123' },
+          { destinationWalletId: 'wallet-123' },
+        ],
+        order: { createdAt: 'DESC' },
+      });
+    });
+
+    it('should throw NotFoundException when wallet not found', async () => {
+      const userId = 'non-existent-user';
+
+      jest.spyOn(walletRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(service.findTransactionsByUserId(userId)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(walletRepository.findOne).toHaveBeenCalledWith({
+        where: { userId },
+      });
+    });
+  });
+
+  describe('findTransactionById', () => {
+    it('should call findOne method', async () => {
+      const transactionId = 'transaction-123';
+      const mockTransaction = {
+        id: transactionId,
+        type: TransactionType.DEPOSIT,
+        amount: 100,
+      };
+
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockTransaction as any);
+
+      const result = await service.findTransactionById(transactionId);
+
+      expect(result).toEqual(mockTransaction);
+      expect(service.findOne).toHaveBeenCalledWith(transactionId);
+    });
+  });
+
+  describe('reverseTransaction - additional edge cases', () => {
+    it('should throw NotFoundException when user wallet not found', async () => {
+      const userId = 'user-123';
+      const reverseTransactionDto: ReverseTransactionDto = {
+        transactionId: 'transaction-123',
+        reason: 'Test reversal',
+      };
+
+      const mockOriginalTransaction = {
+        id: 'transaction-123',
+        type: TransactionType.TRANSFER,
+        status: TransactionStatus.COMPLETED,
+        sourceWalletId: 'wallet-123',
+        destinationWalletId: 'wallet-456',
+      };
+
+      jest
+        .spyOn(transactionRepository, 'findOne')
+        .mockResolvedValue(mockOriginalTransaction as any);
+      jest.spyOn(walletRepository, 'findOne').mockResolvedValue(null);
+
+      await expect(
+        service.reverseTransaction(userId, reverseTransactionDto),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(walletRepository.findOne).toHaveBeenCalledWith({
+        where: { userId },
+      });
+    });
+
+    it('should throw BadRequestException when user has no permission', async () => {
+      const userId = 'user-123';
+      const reverseTransactionDto: ReverseTransactionDto = {
+        transactionId: 'transaction-123',
+        reason: 'Test reversal',
+      };
+
+      const mockOriginalTransaction = {
+        id: 'transaction-123',
+        type: TransactionType.TRANSFER,
+        status: TransactionStatus.COMPLETED,
+        sourceWalletId: 'wallet-456',
+        destinationWalletId: 'wallet-789',
+      };
+
+      const mockUserWallet = {
+        id: 'wallet-123',
+        userId: 'user-123',
+      };
+
+      jest
+        .spyOn(transactionRepository, 'findOne')
+        .mockResolvedValue(mockOriginalTransaction as any);
+      jest
+        .spyOn(walletRepository, 'findOne')
+        .mockResolvedValue(mockUserWallet as any);
+
+      await expect(
+        service.reverseTransaction(userId, reverseTransactionDto),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(transactionRepository.findOne).toHaveBeenCalledWith({
+        where: { id: reverseTransactionDto.transactionId },
+        relations: ['sourceWallet', 'destinationWallet'],
+      });
+      expect(walletRepository.findOne).toHaveBeenCalledWith({
+        where: { userId },
+      });
+    });
+  });
 });

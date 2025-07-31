@@ -57,11 +57,13 @@ Edite o arquivo `.env` com suas configurações específicas.
 
 Com o Postgre instalado na sua máquina execute os comandos abaixo:
 
+```
 psql -d postgres - Conectar no postgre em um banco já existente;
 
 CREATE USER user_wallet WITH PASSWORD 'sua_senha'; - Criar o user da aplicação
 CREATE DATABASE db_wallet; - Criar o database da aplicação
 GRANT ALL PRIVILEGES ON DATABASE db_wallet TO user_wallet; - Configuar as permissões do usuário ao database
+```
 
 
 ### Execução
