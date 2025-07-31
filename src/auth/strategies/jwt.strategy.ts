@@ -26,7 +26,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       }
 
       return { id: user.id, email: user.email, name: user.name };
-    } catch {
+    } catch (error) {
+      // Re-throw UnauthorizedException with specific messages
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      // For any other error (e.g., user not found, database errors)
       throw new UnauthorizedException('Token inválido ou expirado');
     }
   }
