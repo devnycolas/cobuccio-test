@@ -416,6 +416,32 @@ describe('WalletService', () => {
   });
 
   describe('transfer - additional edge cases', () => {
+    it('should throw BadRequestException when trying to transfer to self', async () => {
+      const userId = 'user-123';
+      const transferDto: TransferDto = {
+        destinationUserId: userId, // Same as userId - self transfer
+        amount: 50,
+        description: 'Self transfer attempt',
+      };
+
+      const mockSourceWallet = new Wallet();
+      mockSourceWallet.id = 'wallet-123';
+      mockSourceWallet.balance = 100;
+      mockSourceWallet.userId = userId;
+      mockSourceWallet.hasInconsistency = false;
+
+      jest
+        .spyOn(walletRepository, 'findOne')
+        .mockResolvedValue(mockSourceWallet);
+
+      await expect(service.transfer(userId, transferDto)).rejects.toThrow(
+        'Não é possível realizar transferência para você mesmo',
+      );
+      expect(walletRepository.findOne).toHaveBeenCalledWith({
+        where: { userId },
+      });
+    });
+
     it('should throw NotFoundException when source wallet not found', async () => {
       const userId = 'user-123';
       const transferDto: TransferDto = {

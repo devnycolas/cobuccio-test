@@ -128,6 +128,13 @@ export class WalletService {
         );
       }
 
+      // Verificar se não é uma transferência para si mesmo
+      if (userId === transferDto.destinationUserId) {
+        throw new BadRequestException(
+          'Não é possível realizar transferência para você mesmo',
+        );
+      }
+
       // Verificar saldo suficiente
       if (Number(sourceWallet.balance) < Number(transferDto.amount)) {
         throw new BadRequestException(
